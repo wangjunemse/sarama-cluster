@@ -240,6 +240,7 @@ func (c *Consumer) mainLoop() {
 		var notification *Notification
 		if c.client.config.Group.Return.Notifications {
 			notification = newNotification(c.subs.Info())
+			c.handleNotification(notification)
 		}
 
 		// Rebalance, fetch new subscriptions
@@ -263,7 +264,7 @@ func (c *Consumer) mainLoop() {
 
 		// Update/issue notification with new claims
 		if c.client.config.Group.Return.Notifications {
-			notification.claim(subs)
+			notification.success(subs)
 			c.handleNotification(notification)
 		}
 
@@ -379,7 +380,10 @@ func (c *Consumer) cmLoop(stop <-chan none, done chan<- none) {
 }
 
 func (c *Consumer) rebalanceError(err error, n *Notification) {
-	c.handleNotification(n)
+	if n != nil {
+		n.Type = RebalanceError
+		c.handleNotification(n)
+	}
 
 	switch err {
 	case sarama.ErrRebalanceInProgress:
@@ -394,7 +398,7 @@ func (c *Consumer) rebalanceError(err error, n *Notification) {
 }
 
 func (c *Consumer) handleNotification(n *Notification) {
-	if n != nil && c.client.config.Group.Return.Notifications {
+	if c.client.config.Group.Return.Notifications {
 		select {
 		case c.notifications <- n:
 		case <-c.dying:
@@ -424,9 +428,12 @@ func (c *Consumer) release() (err error) {
 	defer c.subs.Clear()
 
 	// Wait for messages to be processed
+	timeout := time.NewTimer(c.client.config.Group.Offsets.Synchronization.DwellTime)
+	defer timeout.Stop()
+
 	select {
 	case <-c.dying:
-	case <-time.After(c.client.config.Group.Offsets.Synchronization.DwellTime):
+	case <-timeout.C:
 	}
 
 	// Commit offsets, continue on errors

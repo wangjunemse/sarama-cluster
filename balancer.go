@@ -7,8 +7,34 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-// Notification events are emitted by the consumers on rebalancing
+// NotificationType defines the type of notification
+type NotificationType uint8
+
+// String describes the notification type
+func (t NotificationType) String() string {
+	switch t {
+	case RebalanceStart:
+		return "rebalance start"
+	case RebalanceOK:
+		return "rebalance OK"
+	case RebalanceError:
+		return "rebalance error"
+	}
+	return "unknown"
+}
+
+const (
+	UnknownNotification NotificationType = iota
+	RebalanceStart
+	RebalanceOK
+	RebalanceError
+)
+
+// Notification are state events emitted by the consumers on rebalance
 type Notification struct {
+	// Type exposes the notification type
+	Type NotificationType
+
 	// Claimed contains topic/partitions that were claimed by this rebalance cycle
 	Claimed map[string][]int32
 
@@ -19,16 +45,17 @@ type Notification struct {
 	Current map[string][]int32
 }
 
-func newNotification(released map[string][]int32) *Notification {
+func newNotification(current map[string][]int32) *Notification {
 	return &Notification{
+		Type:     RebalanceStart,
 		Claimed:  make(map[string][]int32),
-		Released: released,
-		Current:  make(map[string][]int32),
+		Released: make(map[string][]int32),
+		Current:  current,
 	}
 }
 
-func (n *Notification) claim(current map[string][]int32) {
-	previous := n.Released
+func (n *Notification) success(current map[string][]int32) {
+	previous := n.Current
 	for topic, partitions := range current {
 		n.Claimed[topic] = int32Slice(partitions).Diff(int32Slice(previous[topic]))
 	}
@@ -36,6 +63,7 @@ func (n *Notification) claim(current map[string][]int32) {
 		n.Released[topic] = int32Slice(partitions).Diff(int32Slice(current[topic]))
 	}
 	n.Current = current
+	n.Type = RebalanceOK
 }
 
 // --------------------------------------------------------------------
