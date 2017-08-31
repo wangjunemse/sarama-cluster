@@ -155,10 +155,8 @@ var _ = Describe("Consumer", func() {
 		select {
 		case n := <-cs.Notifications():
 			Expect(n).To(Equal(&Notification{
-				Type:     RebalanceStart,
-				Claimed:  map[string][]int32{},
-				Released: map[string][]int32{},
-				Current:  map[string][]int32{},
+				Type:    RebalanceStart,
+				Current: map[string][]int32{},
 			}))
 		case err := <-cs.Errors():
 			Expect(err).NotTo(HaveOccurred())

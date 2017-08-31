@@ -47,23 +47,25 @@ type Notification struct {
 
 func newNotification(current map[string][]int32) *Notification {
 	return &Notification{
-		Type:     RebalanceStart,
+		Type:    RebalanceStart,
+		Current: current,
+	}
+}
+
+func (n *Notification) success(current map[string][]int32) *Notification {
+	o := &Notification{
+		Type:     RebalanceOK,
 		Claimed:  make(map[string][]int32),
 		Released: make(map[string][]int32),
 		Current:  current,
 	}
-}
-
-func (n *Notification) success(current map[string][]int32) {
-	previous := n.Current
 	for topic, partitions := range current {
-		n.Claimed[topic] = int32Slice(partitions).Diff(int32Slice(previous[topic]))
+		o.Claimed[topic] = int32Slice(partitions).Diff(int32Slice(n.Current[topic]))
 	}
-	for topic, partitions := range previous {
-		n.Released[topic] = int32Slice(partitions).Diff(int32Slice(current[topic]))
+	for topic, partitions := range n.Current {
+		o.Released[topic] = int32Slice(partitions).Diff(int32Slice(current[topic]))
 	}
-	n.Current = current
-	n.Type = RebalanceOK
+	return o
 }
 
 // --------------------------------------------------------------------

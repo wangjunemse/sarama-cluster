@@ -264,7 +264,7 @@ func (c *Consumer) mainLoop() {
 
 		// Update/issue notification with new claims
 		if c.client.config.Group.Return.Notifications {
-			notification.success(subs)
+			notification = notification.success(subs)
 			c.handleNotification(notification)
 		}
 

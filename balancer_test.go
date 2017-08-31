@@ -9,25 +9,23 @@ import (
 
 var _ = Describe("Notification", func() {
 
-	It("should init and update", func() {
+	It("should init and convert", func() {
 		n := newNotification(map[string][]int32{
 			"a": {1, 2, 3},
 			"b": {4, 5},
 			"c": {1, 2},
 		})
 		Expect(n).To(Equal(&Notification{
-			Type:     RebalanceStart,
-			Claimed:  map[string][]int32{},
-			Released: map[string][]int32{},
-			Current:  map[string][]int32{"a": {1, 2, 3}, "b": {4, 5}, "c": {1, 2}},
+			Type:    RebalanceStart,
+			Current: map[string][]int32{"a": {1, 2, 3}, "b": {4, 5}, "c": {1, 2}},
 		}))
 
-		n.success(map[string][]int32{
+		o := n.success(map[string][]int32{
 			"a": {3, 4},
 			"b": {1, 2, 3, 4},
 			"d": {3, 4},
 		})
-		Expect(n).To(Equal(&Notification{
+		Expect(o).To(Equal(&Notification{
 			Type:     RebalanceOK,
 			Claimed:  map[string][]int32{"a": {4}, "b": {1, 2, 3}, "d": {3, 4}},
 			Released: map[string][]int32{"a": {1, 2}, "b": {5}, "c": {1, 2}},
