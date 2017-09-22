@@ -240,6 +240,22 @@ func (c *Consumer) mainLoop() {
 		var notification *Notification
 		if c.client.config.Group.Return.Notifications {
 			notification = newNotification(c.subs.Info())
+		}
+
+		// Refresh coordinator
+		if err := c.refreshCoordinator(); err != nil {
+			c.rebalanceError(err, nil)
+			continue
+		}
+
+		// Release subscriptions
+		if err := c.release(); err != nil {
+			c.rebalanceError(err, nil)
+			continue
+		}
+
+		// Issue rebalance start notification
+		if c.client.config.Group.Return.Notifications {
 			c.handleNotification(notification)
 		}
 
@@ -470,25 +486,12 @@ func (c *Consumer) heartbeat() error {
 func (c *Consumer) rebalance() (map[string][]int32, error) {
 	sarama.Logger.Printf("cluster/consumer %s rebalance\n", c.memberID)
 
-	if err := c.refreshMetadata(); err != nil {
-		return nil, err
-	}
-
-	if err := c.client.RefreshCoordinator(c.groupID); err != nil {
-		return nil, err
-	}
-
 	allTopics, err := c.client.Topics()
 	if err != nil {
 		return nil, err
 	}
 	c.extraTopics = c.selectExtraTopics(allTopics)
 	sort.Strings(c.extraTopics)
-
-	// Release subscriptions
-	if err := c.release(); err != nil {
-		return nil, err
-	}
 
 	// Re-join consumer group
 	strategy, err := c.joinGroup()
@@ -790,6 +793,13 @@ func (c *Consumer) isPotentialExtraTopic(topic string) bool {
 		return true
 	}
 	return false
+}
+
+func (c *Consumer) refreshCoordinator() error {
+	if err := c.refreshMetadata(); err != nil {
+		return err
+	}
+	return c.client.RefreshCoordinator(c.groupID)
 }
 
 func (c *Consumer) refreshMetadata() (err error) {
